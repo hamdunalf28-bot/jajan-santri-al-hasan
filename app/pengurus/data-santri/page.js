@@ -39,6 +39,10 @@ export default function DataSantriPage() {
   const [search, setSearch] = useState("");
   const [showSuggest, setShowSuggest] = useState(false);
 
+  // ✅ SORTING
+  // opsi: nama_asc, saldo_asc, saldo_desc
+  const [sortMode, setSortMode] = useState("nama_asc");
+
   useEffect(() => {
     // ambil override dari localStorage (biar tidak hilang)
     const saved = localStorage.getItem("next_id_override");
@@ -86,7 +90,8 @@ export default function DataSantriPage() {
     setLastSync(new Date().toLocaleString("id-ID"));
   };
 
-  const filteredForTable = useMemo(() => {
+  // ===== SEARCH FILTER =====
+  const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return dataSantri;
     return dataSantri.filter((s) => {
@@ -96,11 +101,56 @@ export default function DataSantriPage() {
     });
   }, [dataSantri, search]);
 
+  // ===== SORTING =====
+  const filteredSortedForTable = useMemo(() => {
+    const arr = [...filtered];
+
+    if (sortMode === "nama_asc") {
+      arr.sort((a, b) =>
+        String(a.nama || "").localeCompare(String(b.nama || ""), "id", {
+          sensitivity: "base",
+        })
+      );
+      return arr;
+    }
+
+    if (sortMode === "saldo_asc") {
+      arr.sort((a, b) => {
+        const sa = Number(a.saldo || 0);
+        const sb = Number(b.saldo || 0);
+        if (sa !== sb) return sa - sb;
+        return String(a.nama || "").localeCompare(String(b.nama || ""), "id", {
+          sensitivity: "base",
+        });
+      });
+      return arr;
+    }
+
+    if (sortMode === "saldo_desc") {
+      arr.sort((a, b) => {
+        const sa = Number(a.saldo || 0);
+        const sb = Number(b.saldo || 0);
+        if (sa !== sb) return sb - sa;
+        return String(a.nama || "").localeCompare(String(b.nama || ""), "id", {
+          sensitivity: "base",
+        });
+      });
+      return arr;
+    }
+
+    return arr;
+  }, [filtered, sortMode]);
+
+  // suggestions (autocomplete)
   const suggestions = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return [];
     return dataSantri
-      .filter((s) => (s.nama || "").toLowerCase().includes(q))
+      .filter(
+        (s) =>
+          (s.nama || "").toLowerCase().includes(q) ||
+          (s.kode_id || "").toLowerCase().includes(q)
+      )
       .slice(0, 8);
   }, [dataSantri, search]);
 
@@ -375,38 +425,55 @@ export default function DataSantriPage() {
           onRefresh={handleRefresh}
         />
 
-        {/* SEARCH */}
+        {/* SEARCH + SORT */}
         <div className="bg-white rounded-2xl shadow-lg p-4 mb-5 relative">
-          <div className="font-semibold text-emerald-700 mb-2">Cari Santri</div>
-          <input
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setShowSuggest(true);
-            }}
-            onBlur={() => setTimeout(() => setShowSuggest(false), 150)}
-            placeholder="Ketik nama atau ID santri..."
-            className="w-full border rounded-xl p-3"
-          />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+            <div className="md:col-span-2">
+              <div className="font-semibold text-emerald-700 mb-2">Cari Santri</div>
+              <input
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setShowSuggest(true);
+                }}
+                onBlur={() => setTimeout(() => setShowSuggest(false), 150)}
+                placeholder="Ketik nama atau ID santri..."
+                className="w-full border rounded-xl p-3"
+              />
 
-          {showSuggest && suggestions.length > 0 && (
-            <div className="absolute left-4 right-4 top-[108px] bg-white border rounded-xl shadow-lg overflow-hidden z-20">
-              {suggestions.map((s) => (
-                <button
-                  key={s.kode_id}
-                  type="button"
-                  onMouseDown={() => {
-                    setSearch(s.nama);
-                    setShowSuggest(false);
-                  }}
-                  className="w-full text-left px-4 py-3 hover:bg-emerald-50"
-                >
-                  <div className="font-semibold text-gray-800">{s.nama}</div>
-                  <div className="text-xs text-gray-500">{s.kode_id}</div>
-                </button>
-              ))}
+              {showSuggest && suggestions.length > 0 && (
+                <div className="absolute left-4 right-4 top-[110px] bg-white border rounded-xl shadow-lg overflow-hidden z-20">
+                  {suggestions.map((s) => (
+                    <button
+                      key={s.kode_id}
+                      type="button"
+                      onMouseDown={() => {
+                        setSearch(s.nama);
+                        setShowSuggest(false);
+                      }}
+                      className="w-full text-left px-4 py-3 hover:bg-emerald-50"
+                    >
+                      <div className="font-semibold text-gray-800">{s.nama}</div>
+                      <div className="text-xs text-gray-500">{s.kode_id}</div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
+
+            <div>
+              <div className="font-semibold text-emerald-700 mb-2">Urutkan</div>
+              <select
+                value={sortMode}
+                onChange={(e) => setSortMode(e.target.value)}
+                className="w-full border rounded-xl p-3 bg-white"
+              >
+                <option value="nama_asc">Abjad A-Z</option>
+                <option value="saldo_asc">Saldo Terkecil</option>
+                <option value="saldo_desc">Saldo Terbesar</option>
+              </select>
+            </div>
+          </div>
         </div>
 
         {/* FORM */}
@@ -432,7 +499,7 @@ export default function DataSantriPage() {
 
         {/* TABLE */}
         <TabelSantri
-          data={filteredForTable}
+          data={filteredSortedForTable}
           selected={selected}
           setSelected={setSelected}
           onEdit={handleEdit}
