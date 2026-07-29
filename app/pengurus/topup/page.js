@@ -1,119 +1,101 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import Image from "next/image";
 
-export default function TopupPage() {
-  const [santriList, setSantriList] = useState([]);
-  const [selectedSantri, setSelectedSantri] = useState(null);
-  const [nominal, setNominal] = useState("");
+export default function PengurusPage() {
+  const router = useRouter();
+  const [user, setUser] = useState(null);
 
   useEffect(() => {
-    fetchSantri();
+    const u = JSON.parse(localStorage.getItem("user"));
+
+    if (!u || u.role !== "pengurus") {
+      router.push("/");
+      return;
+    }
+
+    setUser(u);
   }, []);
 
-  const fetchSantri = async () => {
-    const { data } = await supabase.from("santri").select("*");
-    setSantriList(data || []);
-  };
-
-  const handleTopup = async (amount) => {
-    if (!selectedSantri) {
-      alert("Pilih santri dulu!");
-      return;
-    }
-
-    const topupAmount = amount || parseInt(nominal);
-
-    if (!topupAmount || topupAmount <= 0) {
-      alert("Masukkan nominal yang benar");
-      return;
-    }
-
-    const saldoBaru =
-      parseInt(selectedSantri.saldo) + parseInt(topupAmount);
-
-    // Update saldo
-    await supabase
-      .from("santri")
-      .update({ saldo: saldoBaru })
-      .eq("kode_id", selectedSantri.kode_id);
-
-    // Simpan transaksi
-    await supabase.from("transaksi").insert([
-      {
-        kode_santri: selectedSantri.kode_id,
-        kode_wali: selectedSantri.wali_kode,
-        jenis: "topup",
-        jumlah: topupAmount,
-        saldo_setelah: saldoBaru,
-      },
-    ]);
-
-    alert("Top Up berhasil ✅");
-
-    setNominal("");
-    fetchSantri();
-    setSelectedSantri(null);
-  };
+  const menus = [
+    { label: "Data Santri", icon: "👨‍🎓", href: "/pengurus/data-santri" },
+    { label: "Top Up Saldo", icon: "💰", href: "/pengurus/topup" },
+    { label: "Transaksi Jajan", icon: "🛒", href: "/pengurus/jajan" },
+    { label: "Laporan", icon: "📊", href: "/pengurus/laporan" },
+    { label: "Pengaturan", icon: "⚙️", href: "/pengurus/pengaturan" },
+  ];
 
   return (
-    <div className="min-h-screen p-10 bg-green-100">
-      <div className="bg-white p-8 rounded-xl shadow-lg max-w-xl mx-auto">
-        <h1 className="text-2xl font-bold text-green-700 mb-6">
-          Top Up Saldo
-        </h1>
+    <div className="min-h-screen bg-gradient-to-br from-emerald-600 to-green-800 p-6">
+      <div className="max-w-4xl mx-auto">
 
-        <select
-          onChange={(e) =>
-            setSelectedSantri(
-              santriList.find((s) => s.kode_id === e.target.value)
-            )
-          }
-          className="w-full border p-3 rounded mb-4"
-        >
-          <option value="">Pilih Santri</option>
-          {santriList.map((s) => (
-            <option key={s.kode_id} value={s.kode_id}>
-              {s.nama} ({s.kode_id})
-            </option>
-          ))}
-        </select>
-
-        {selectedSantri && (
-          <div className="mb-4">
-            <p>
-              Saldo Saat Ini: <b>Rp {selectedSantri.saldo}</b>
-            </p>
+        {/* HEADER */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <Image
+              src="/logo.png"
+              alt="Logo"
+              width={50}
+              height={50}
+              style={{ height: "auto" }}
+            />
+            <div>
+              <h1 className="text-white font-bold text-lg">
+                Pondok Pesantren Al-Hasan
+              </h1>
+              <p className="text-emerald-100 text-sm">
+                Sistem Jajan Santri
+              </p>
+            </div>
           </div>
-        )}
 
-        <div className="grid grid-cols-3 gap-2 mb-4">
-          {[100000, 200000, 300000, 400000, 500000].map((amount) => (
-            <button
-              key={amount}
-              onClick={() => handleTopup(amount)}
-              className="bg-green-500 text-white p-2 rounded hover:bg-green-600"
+          <button
+            onClick={() => {
+              localStorage.removeItem("user");
+              router.push("/");
+            }}
+            className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition"
+          >
+            Logout
+          </button>
+        </div>
+
+        {/* WELCOME CARD */}
+        <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
+          <p className="text-gray-500 text-sm">Selamat datang,</p>
+          <h2 className="text-2xl font-bold text-emerald-700">
+            {user?.nama}
+          </h2>
+          <p className="text-xs text-gray-400">
+            ID: {user?.kode_id}
+          </p>
+        </div>
+
+        {/* MENU GRID */}
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          {menus.map((menu) => (
+            <Link
+              key={menu.href}
+              href={menu.href}
+              className="bg-white rounded-2xl shadow-lg p-6 flex flex-col items-center hover:shadow-2xl hover:-translate-y-1 transition"
             >
-              {amount / 1000}K
-            </button>
+              <div className="text-4xl mb-2">
+                {menu.icon}
+              </div>
+              <p className="font-semibold text-emerald-700 text-center">
+                {menu.label}
+              </p>
+            </Link>
           ))}
         </div>
 
-        <input
-          type="number"
-          placeholder="Nominal lain"
-          value={nominal}
-          onChange={(e) => setNominal(e.target.value)}
-          className="w-full border p-3 rounded mb-4"
-        />
-
-        <button
-          onClick={() => handleTopup()}
-          className="w-full bg-green-700 text-white p-3 rounded hover:bg-green-800"
-        >
-          Top Up
-        </button>
+        {/* FOOTER */}
+        <p className="text-center text-emerald-100 text-xs mt-10">
+          © 2026 Pondok Pesantren Al-Hasan
+        </p>
       </div>
     </div>
   );

@@ -2,107 +2,90 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import Link from "next/link";
+import Image from "next/image";
 
-export default function WaliPage() {
+export default function PengurusPage() {
   const router = useRouter();
-  const [santri, setSantri] = useState(null);
-  const [transaksi, setTransaksi] = useState([]);
+  const [user, setUser] = useState(null);
 
   useEffect(() => {
-    const user = JSON.parse(localStorage.getItem("user"));
-
-    if (!user || user.role !== "wali") {
+    const u = JSON.parse(localStorage.getItem("user"));
+    if (!u || u.role !== "pengurus") {
       router.push("/");
       return;
     }
-
-    const fetchData = async () => {
-      const { data: santriData } = await supabase
-        .from("santri")
-        .select("*")
-        .eq("wali_kode", user.kode_id)
-        .single();
-
-      setSantri(santriData);
-
-      if (santriData) {
-        const { data: transaksiData } = await supabase
-          .from("transaksi")
-          .select("*")
-          .eq("kode_santri", santriData.kode_id)
-          .order("created_at", { ascending: false });
-
-        setTransaksi(transaksiData || []);
-      }
-    };
-
-    fetchData();
+    setUser(u);
   }, []);
 
-  return (
-    <div className="min-h-screen p-10 bg-green-100">
-      <div className="bg-white p-8 rounded-xl shadow-lg max-w-3xl mx-auto">
-        <h1 className="text-2xl font-bold text-green-700 mb-6">
-          Dashboard Wali Santri
-        </h1>
+  const menus = [
+    { label: "Data Santri", icon: "👨‍🎓", href: "/pengurus/data-santri" },
+    { label: "Top Up Saldo", icon: "💰", href: "/pengurus/topup" },
+    { label: "Transaksi Jajan", icon: "🛒", href: "/pengurus/jajan" },
+    { label: "Laporan", icon: "📊", href: "/pengurus/laporan" },
+    { label: "Pengaturan", icon: "⚙️", href: "/pengurus/pengaturan" }, // ✅ MENU BARU
+  ];
 
-        {santri ? (
-          <>
-            <div className="mb-6">
-              <p><b>Nama Anak:</b> {santri.nama}</p>
-              <p><b>ID Santri:</b> {santri.kode_id}</p>
-              <p className="text-xl font-bold mt-2">
-                Saldo: Rp {santri.saldo}
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-emerald-600 to-green-800 p-6">
+      <div className="max-w-4xl mx-auto">
+
+        {/* HEADER */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <Image src="/logo.png" alt="Logo" width={50} height={50} />
+            <div>
+              <h1 className="text-white font-bold text-lg">
+                Pondok Pesantren Al-Hasan
+              </h1>
+              <p className="text-emerald-100 text-sm">
+                Sistem Jajan Santri
               </p>
             </div>
+          </div>
 
-            <h2 className="text-lg font-semibold mb-3">
-              Riwayat Transaksi
-            </h2>
+          <button
+            onClick={() => {
+              localStorage.removeItem("user");
+              router.push("/");
+            }}
+            className="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600"
+          >
+            Logout
+          </button>
+        </div>
 
-            <table className="w-full border border-gray-300">
-              <thead>
-                <tr className="bg-green-200">
-                  <th className="border p-2">Tanggal</th>
-                  <th className="border p-2">Jenis</th>
-                  <th className="border p-2">Nominal</th>
-                  <th className="border p-2">Saldo Setelah</th>
-                </tr>
-              </thead>
-              <tbody>
-                {transaksi.map((t) => (
-                  <tr key={t.id}>
-                    <td className="border p-2">
-                      {new Date(t.created_at).toLocaleString()}
-                    </td>
-                    <td className="border p-2">
-                      {t.jenis === "topup" ? "Top Up" : "Jajan"}
-                    </td>
-                    <td className="border p-2">
-                      Rp {t.jumlah}
-                    </td>
-                    <td className="border p-2">
-                      Rp {t.saldo_setelah}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </>
-        ) : (
-          <p>Data tidak ditemukan</p>
-        )}
+        {/* WELCOME CARD */}
+        <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
+          <p className="text-gray-500 text-sm">Selamat datang,</p>
+          <h2 className="text-2xl font-bold text-emerald-700">
+            {user?.nama}
+          </h2>
+          <p className="text-xs text-gray-400">
+            ID: {user?.kode_id}
+          </p>
+        </div>
 
-        <button
-          onClick={() => {
-            localStorage.removeItem("user");
-            router.push("/");
-          }}
-          className="mt-6 bg-red-500 text-white px-4 py-2 rounded"
-        >
-          Logout
-        </button>
+        {/* MENU GRID */}
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          {menus.map((m) => (
+            <Link
+              key={m.href}
+              href={m.href}
+              className="bg-white rounded-2xl shadow-lg p-6 flex flex-col items-center hover:shadow-2xl hover:-translate-y-1 transition"
+            >
+              <div className="text-4xl mb-2">{m.icon}</div>
+              <p className="font-semibold text-emerald-700 text-center">
+                {m.label}
+              </p>
+            </Link>
+          ))}
+        </div>
+
+        {/* FOOTER */}
+        <p className="text-center text-emerald-100 text-xs mt-10">
+          © 2026 Pondok Pesantren Al-Hasan
+        </p>
       </div>
     </div>
   );
